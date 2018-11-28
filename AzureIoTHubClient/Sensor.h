@@ -10,7 +10,10 @@ class Sensor
 {
 public:
   Sensor(MqttClient *mqttClient);
+  //  Bmp280(MqttClient *mqttClient) : Sensor(mqttClient){};
+
   void measure();
+
   char *toJSON();
 
   float temperature;

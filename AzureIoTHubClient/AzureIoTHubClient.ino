@@ -86,30 +86,16 @@
 
 #include "MqttClient.h"
 #include "Device.h"
-#include <TimeLib.h> // http://playground.arduino.cc/code/time - installed via library manager
-#include "Bme280.h"
-#include "Bmp280.h"
-#include "Bmp180.h"
-#include "DhtSensor.h"
+//#include <TimeLib.h> // http://playground.arduino.cc/code/time - installed via library manager
 #include "DigitalPin.h"
-#include "Ldr.h"
-//#include "OLED.h"
+#include "Sensor.h"
 
 #define delay(s) mqttClient.mqttDelay(s) // this overrides the standard delay with a safe mqtt delay which calls mqtt.loop()
 
-#ifdef ARDUINO_ARCH_SAMD
-#include <WiFi101.h>
-WiFiSSLClient tlsClient;
-DigitalPin led(LED_BUILTIN, false, false); // initial state is off (false), invert true = high turns led off
-DigitalPin senorPowerPin(12, true, false); // initial state is off (false), invert true = high turns led off
-const char *certificateFingerprint = "";
-#endif
-
-#ifdef ARDUINO_ARCH_ESP8266
 #include <ESP8266WiFi.h>
 WiFiClientSecure tlsClient;
 DigitalPin led(BUILTIN_LED, false, true); // initial state is off (false), invert true = high turns led off
-
+DigitalPin sensorPowerPin(D8);
 /* 
  http://hassansin.github.io/certificate-pinning-in-nodejs
  for information on generating the certificate fingerprint
@@ -117,33 +103,23 @@ DigitalPin led(BUILTIN_LED, false, true); // initial state is off (false), inver
  echo -n | openssl s_mqttClient -connect IoTCampAU.azure-devices.net:8883 | sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > cert.pem
  openssl x509 -noout -in cert.pem -fingerprint
 */
-const char *certificateFingerprint = "38:5C:47:B1:97:DA:34:57:BB:DD:E7:7C:B9:11:8F:8D:1D:92:EB:F1";
+const char *certificateFingerprint = "";
 
-#endif
+const char *connectionString = "";
 
-const char *connectionString = "HostName=IoTCampAU.azure-devices.net;DeviceId=FeatherM0;SharedAccessKey=/g57wAa9k7vzuVqumRqkE4Ha9s5CqYajTpx7xlGAwd8=";
-const char *ssid = "NCW";
-const char *pwd = "malolos5459";
-const char *geo = "syd-appt";
+const char *ssid = "";
+const char *pwd = "";
+const char *geo = "Helsinki";
 
 MqttClient mqttClient(tlsClient);
 Device device(ssid, pwd);
 
-//Sensor sensor(&mqttClient);
-//Bmp180 sensor(&mqttClient);
-//Bmp280 sensor(&mqttClient);
-Bme280 sensor(&mqttClient);
-//DhtSensor sensor(&mqttClient, device, dht11);
-//DhtSensor sensor(&mqttClient, device, dht22);
-
-Ldr light;
-
-//OLED display(&sensor);
+Sensor sensor(&mqttClient);
 
 IPAddress timeServer(62, 237, 86, 238); // Update these with values suitable for your network.
 
 void initDeviceConfig()
-{                                  // Example device configuration
+{                                   // Example device configuration
   device.publishRateInSeconds = 20; // limits publishing rate to specified seconds (default is 90 seconds).  Connectivity problems may result if number too small eg 2
 
   mqttClient.sasExpiryPeriodInSeconds = 15 * 60; // Renew Sas Token every 15 minutes
@@ -154,18 +130,15 @@ void initDeviceConfig()
 
 void setup()
 {
-#ifdef ARDUINO_ARCH_SAMD
-  WiFi.setPins(8, 7, 4, 2);
-  WiFi.lowPowerMode();
-#endif
-//    while(!Serial) {}
   Serial.begin(115200);
 
-  //  display.text("Connecting");
+  Serial.println("Connecting WiFi");
   initDeviceConfig();
   device.connectWifi();
-//  getCurrentTime();
 
+  getCurrentTime();
+
+  Serial.println("mqtt connect");
   mqttClient.setServer(mqttClient.host, 8883);
   mqttClient.setCallback(callback);
 }
@@ -194,26 +167,22 @@ void getCurrentTime()
 
 void loop()
 {
-  senorPowerPin.on();
+  Serial.println("starting loop");
+  sensorPowerPin.on();
   delay(50);
-  
+
   getCurrentTime();
-  
+
   if (device.connectWifi())
   {
     Serial.println("mqtt close");
     mqttClient.close();
   }
 
-  sensor.measure(true);  
-  senorPowerPin.off();
-  
-//  sensor.light = light.measure();
-//  display.sensorData();
+  sensor.measure();
+  sensorPowerPin.off();
 
-  //  led.on();
   mqttClient.send(sensor.toJSON());
-  //  led.off();
 
-  delay(device.publishRateInSeconds * 1000); // limit publishing rate
+  delay(device.publishRateInSeconds * 10); // limit publishing rate
 }

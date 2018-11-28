@@ -13,9 +13,9 @@ void Sensor::measure()
   humidity = 50;
   pressure = 1000;
 
-//  Serial.println(temperature);
-//  Serial.println(pressure);
-//  Serial.println(humidity);
+  Serial.println(temperature);
+  Serial.println(pressure);
+  Serial.println(humidity);
 }
 
 char *Sensor::toJSON()
@@ -28,7 +28,7 @@ char *Sensor::toJSON()
   JsonObject &root = jsonBuffer.createObject();
 
   root["Utc"] = getISODateTime();
-  root["Celsius"] = round(temperature*10)/10.0;
+  root["Celsius"] = round(temperature * 10) / 10.0;
   root["Humidity"] = round(humidity);
   root["hPa"] = pressure;
   root["Light"] = light;
